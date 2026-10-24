@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Thủy Mặc Thủ Thành - Prototype</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background-color: #1e221d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        /* Khung màn hình tỷ lệ 9:16 chuẩn điện thoại */
+        #game-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 430px;
+            height: 100vh;
+            max-height: 860px;
+            background-color: #d8dec8;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Thanh Vàng góc trên bên trái */
+        #top-bar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: #484d54;
+            border: 3px solid #22252a;
+            border-radius: 14px;
+            padding: 6px 18px 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-size: 26px;
+            font-weight: 900;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+            box-shadow: 0 4px 0 #22252a;
+            z-index: 10;
+        }
+        .coin-icon {
+            width: 32px;
+            height: 32px;
+            background: radial-gradient(circle at 30% 30%, #ffd700, #d48800);
+            border: 2.5px solid #222;
+            border-radius: 50%;
+            position: relative;
+        }
+        .coin-icon::after {
+            content: '';
+            position: absolute;
+            top: 5px; left: 5px; right: 5px; bottom: 5px;
+            border: 1.5px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+        }
+
+        /* Thông tin đợt quân */
+        #wave-badge {
+            position: absolute;
+            top: 20px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.65);
+            border: 2px solid #2c352d;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-weight: 800;
+            color: #222;
+            font-size: 14px;
+            z-index: 10;
+        }
+
+        /* Bảng trang bị & chiêu mộ ở dưới */
+        #ui-panel {
+            position: absolute;
+            bottom: 95px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #77828c;
+            border: 3.5px solid #1f2428;
+            border-radius: 16px;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 6px 0 #1f2428, 0 10px 20px rgba(0,0,0,0.35);
+            z-index: 10;
+        }
+
+        /* Ô Lính chuẩn bị xuất trận */
+        #recruit-card {
+            width: 78px;
+            height: 152px;
+            background: linear-gradient(180deg, #74b9ff 0%, #a2d2ff 100%);
+            border: 3px solid #1f2428;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 4px;
+            cursor: pointer;
+            box-shadow: inset 0 -5px 0 rgba(0,0,0,0.18);
+            transition: transform 0.08s;
+            position: relative;
+        }
+        #recruit-card:active {
+            transform: scale(0.95);
+        }
+        .card-badge {
+            font-size: 11px;
+            font-weight: 900;
+            color: #fff;
+            background: #1f2428;
+            padding: 3px 7px;
+            border-radius: 6px;
+            text-align: center;
+            width: 90%;
+        }
+        .deploy-hint {
+            font-size: 10px;
+            font-weight: 800;
+            color: #1e3799;
+            text-transform: uppercase;
+        }
+
+        /* Lưới 4 ô vũ khí */
+        #inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 70px);
+            grid-template-rows: repeat(2, 70px);
+            gap: 10px;
+        }
+        .inv-slot {
+            width: 70px;
+            height: 70px;
+            background: #ded4c1;
+            border: 3px solid #2b2b2b;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+            box-shadow: inset 0 -4px 0 #c2b69f;
+            transition: all 0.1s;
+        }
+        .inv-slot.filled {
+            background: #f5f2eb;
+            box-shadow: 0 4px 0 #9e988e, inset 0 2px 0 #fff;
+        }
+        .inv-slot.selected {
+            border-color: #f39c12;
+            background: #fff9e6;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 0 #d68910;
+        }
+        .slot-tag {
+            position: absolute;
+            bottom: 3px;
+            right: 5px;
+            font-size: 10px;
+            font-weight: 900;
+            color: #333;
+            background: rgba(255,255,255,0.8);
+            padding: 0 4px;
+            border-radius: 4px;
+            border: 1px solid #555;
+        }
+
+        /* Nút رèn vũ khí phía dưới cùng */
+        #bottom-controls {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 14px;
+            z-index: 10;
+        }
+        .game-btn {
+            height: 62px;
+            padding: 0 18px;
+            background: #f2efe9;
+            border: 3.5px solid #1f2428;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #1f2428;
+            font-weight: 900;
+            font-size: 14px;
+            color: #1f2428;
+            transition: transform 0.08s;
+        }
+        .game-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #1f2428;
+        }
+        .btn-price {
+            background: #ffd32a;
+            border: 2px solid #1f2428;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        /* Hướng dẫn nhanh */
+        #toast-guide {
+            position: absolute;
+            top: 72px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            text-align: center;
+            background: rgba(25, 30, 26, 0.78);
+            color: #f5f6fa;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <!-- Thanh Vàng -->
+    <div id="top-bar">
+        <div class="coin-icon"></div>
+        <span id="gold-text">50</span>
+    </div>
+
+    <!-- Đợt quân địch -->
+    <div id="wave-badge">ĐỢT QUÂN: <span id="wave-num">1</span></div>
+
+    <!-- Hướng dẫn -->
+    <div id="toast-guide">
+        Chạm 2 vũ khí cùng loại để <b>GHÉP CẤP 2</b> • Chọn vũ khí rồi ấn <b>LÍNH XANH</b> để xuất trận!
+    </div>
+
+    <!-- Canvas chính vẽ bối cảnh thủy mặc & trận chiến -->
+    <canvas id="battleCanvas" width="430" height="860"></canvas>
+
+    <!-- Khung Ghép Đồ & Chiêu Mộ giống trong ảnh mẫu -->
+    <div id="ui-panel">
+        <div id="recruit-card" title="Nhấn để xuất binh">
+            <span class="deploy-hint">Xuất Binh</span>
+            <canvas id="previewCanvas" width="64" height="84"></canvas>
+            <div class="card-badge" id="preview-weapon-name">Kiếm Sắt</div>
+        </div>
+
+        <div id="inventory-grid">
+            <div class="inv-slot" data-index="0"></div>
+            <div class="inv-slot" data-index="1"></div>
+            <div class="inv-slot" data-index="2"></div>
+            <div class="inv-slot" data-index="3"></div>
+        </div>
+    </div>
+
+    <!-- Nút Rèn Vũ Khí ở đáy màn hình -->
+    <div id="bottom-controls">
+        <button class="game-btn" id="btn-forge-bow">
+            <span>🏹 Rèn Cung</span>
+            <span class="btn-price">15 Vàng</span>
+        </button>
+        <button class="game-btn" id="btn-forge-sword">
+            <span>🗡️ Rèn Kiếm</span>
+            <span class="btn-price">10 Vàng</span>
+        </button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('battleCanvas');
+const ctx = canvas.getContext('2d');
+const previewCanvas = document.getElementById('previewCanvas');
+const pCtx = previewCanvas.getContext('2d');
+
+// ================= DỮ LIỆU VŨ KHÍ & GHÉP ĐỒ =================
+const WEAPONS = {
+    sword1: { id: 'sword1', name: 'Kiếm Sắt', next: 'sword2', range: 38, dmg: 18, cd: 38, type: 'melee' },
+    sword2: { id: 'sword2', name: 'Đại Đao', next: null, range: 45, dmg: 45, cd: 32, type: 'melee' },
+    bow1:   { id: 'bow1',   name: 'Cung Gỗ', next: 'crossbow', range: 190, dmg: 14, cd: 52, type: 'ranged' },
+    crossbow: { id: 'crossbow', name: 'Nỏ Liên Châu', next: null, range: 235, dmg: 34, cd: 35, type: 'ranged' }
+};
+
+let state = {
+    gold: 50,
+    wave: 1,
+    inventory: ['bow1', null, 'crossbow', null], // Khởi tạo giống hệt ảnh mẫu
+    selectedSlot: null,
+    equippedWeapon: 'sword1',
+    allies: [],
+    enemies: [],
+    arrows: [],
+    hits: [],
+    frame: 0
+};
+
+// ================= VẼ ĐỒ HỌA VECTOR THỦY MẶC & CHIBI =================
+
+// Vẽ icon vũ khí bằng SVG nhúng vào ô trang bị
+function getWeaponSVG(type) {
+    if (type === 'bow1') {
+        return `<svg width="46" height="46" viewBox="0 0 50 50">
+            <path d="M14 8 C38 16, 38 34, 14 42" fill="none" stroke="#4a3219" stroke-width="4" stroke-linecap="round"/>
+            <line x1="14" y1="8" x2="14" y2="42" stroke="#222" stroke-width="1.8"/>
+            <line x1="9" y1="25" x2="40" y2="25" stroke="#222" stroke-width="2.5"/>
+            <polygon points="43,25 35,21 35,29" fill="#222"/>
+        </svg>`;
+    }
+    if (type === 'crossbow') {
+        return `<svg width="46" height="46" viewBox="0 0 50 50">
+            <line x1="10" y1="38" x2="38" y2="12" stroke="#5c3a1e" stroke-width="6" stroke-linecap="round"/>
+            <path d="M14 12 C26 22, 28 24, 38 36" fill="none" stroke="#2d3436" stroke-width="4" stroke-linecap="round"/>
+            <line x1="14" y1="12" x2="22" y2="28" stroke="#111" stroke-width="1.5"/>
+            <line x1="38" y1="36" x2="22" y2="28" stroke="#111" stroke-width="1.5"/>
+            <line x1="18" y1="30" x2="41" y2="9" stroke="#c0392b" stroke-width="2.5"/>
+        </svg>`;
+    }
+    if (type === 'sword1') {
+        return `<svg width="46" height="46" viewBox="0 0 50 50">
+            <line x1="12" y1="38" x2="20" y2="30" stroke="#5c3a1e" stroke-width="5" stroke-linecap="round"/>
+            <line x1="16" y1="26" x2="24" y2="34" stroke="#f1c40f" stroke-width="4" stroke-linecap="round"/>
+            <polygon points="20,30 39,9 42,12 23,33" fill="#bdc3c7" stroke="#222" stroke-width="2"/>
+        </svg>`;
+    }
+    if (type === 'sword2') {
+        return `<svg width="46" height="46" viewBox="0 0 50 50">
+            <line x1="10" y1="40" x2="22" y2="28" stroke="#6e2c00" stroke-width="5" stroke-linecap="round"/>
+            <path d="M20 26 L38 8 C44 12, 40 22, 25 31 Z" fill="#e67e22" stroke="#222" stroke-width="2.2"/>
+        </svg>`;
+    }
+    return '';
+}
+
+// Vẽ bối cảnh núi non thủy mặc, cây tùng, đường đá và doanh trại
+function drawInkBackground() {
+    // Nền giấy tuyên thành cổ
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 860);
+    skyGrad.addColorStop(0, '#eef1e6');
+    skyGrad.addColorStop(0.35, '#d5dec7');
+    skyGrad.addColorStop(1, '#b8c7a3');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, 430, 860);
+
+    // Núi thủy mặc tầng xa
+    ctx.fillStyle = 'rgba(130, 152, 136, 0.45)';
+    ctx.beginPath();
+    ctx.moveTo(0, 230);
+    ctx.quadraticCurveTo(65, 95, 140, 185);
+    ctx.quadraticCurveTo(210, 130, 275, 195);
+    ctx.quadraticCurveTo(355, 65, 430, 160);
+    ctx.lineTo(430, 310);
+    ctx.lineTo(0, 310);
+    ctx.fill();
+
+    // Núi thủy mặc tầng gần kèm nét cọ đen
+    ctx.fillStyle = 'rgba(105, 128, 112, 0.55)';
+    ctx.strokeStyle = '#2d3830';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-10, 260);
+    ctx.quadraticCurveTo(55, 145, 125, 235);
+    ctx.quadraticCurveTo(185, 180, 240, 255);
+    ctx.quadraticCurveTo(380, 130, 440, 235);
+    ctx.lineTo(440, 320);
+    ctx.lineTo(-10, 320);
+    ctx.fill();
+    ctx.stroke();
+
+    // Cây tùng cổ thụ bên trái
+    drawPineTree(32, 275, 1);
+    drawPineTree(70, 290, 0.75);
+
+    // Con đường lát đá cổ (nơi giao chiến)
+    ctx.fillStyle = '#dcd4c4';
+    ctx.fillRect(0, 385, 430, 235);
+
+    // Viền đá trên & dưới con đường
+    ctx.strokeStyle = '#332f2a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 385); ctx.lineTo(430, 385);
+    ctx.moveTo(0, 620); ctx.lineTo(430, 620);
+    ctx.stroke();
+
+    // Vân gạch đá lát đường
+    ctx.strokeStyle = 'rgba(70, 62, 52, 0.35)';
+    ctx.lineWidth = 1.5;
+    for (let y = 385; y < 620; y += 39) {
+        ctx.beginPath();
+        ctx.moveTo(0, y); ctx.lineTo(430, y);
+        ctx.stroke();
+        for (let x = (y % 78 === 0 ? 20 : 0); x < 430; x += 52) {
+            ctx.beginPath();
+            ctx.moveTo(x, y); ctx.lineTo(x - 8, y + 39);
+            ctx.stroke();
+        }
+    }
+
+    // Lều quân doanh bên trái (giống trong ảnh)
+    drawMilitaryTent(0, 330);
+}
+
+function drawPineTree(x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.strokeStyle = '#26211d';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(0, 40);
+    ctx.quadraticCurveTo(-5, 0, 6, -55);
+    ctx.stroke();
+
+    ctx.fillStyle = '#2d4030';
+    const canopies = [[-18, -35, 22], [15, -45, 20], [0, -65, 25]];
+    canopies.forEach(([cx, cy, r]) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, Math.PI, 0, false);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    });
+    ctx.restore();
+}
+
+function drawMilitaryTent(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = '#dfd5c3';
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 3;
+
+    // Thân lều
+    ctx.beginPath();
+    ctx.moveTo(0, 20);
+    ctx.lineTo(68, 35);
+    ctx.lineTo(84, 155);
+    ctx.lineTo(0, 185);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Cửa lều tối
+    ctx.fillStyle = '#3a322b';
+    ctx.beginPath();
+    ctx.moveTo(15, 78);
+    ctx.lineTo(54, 65);
+    ctx.lineTo(58, 160);
+    ctx.lineTo(15, 176);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Mái lều viền xanh xám
+    ctx.fillStyle = '#6f7e85';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(78, 35);
+    ctx.lineTo(65, 48);
+    ctx.lineTo(0, 25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+
+// Hàm vẽ nhân vật Chibi cổ trang (phe Xanh hoặc phe Đỏ)
+function drawChibiUnit(targetCtx, x, y, faction, weaponId, animOffset = 0, scale = 1) {
+    targetCtx.save();
+    targetCtx.translate(x, y);
+    targetCtx.scale(scale, scale);
+
+    // Nhịp nhún nhảy khi di chuyển
+    const bob = Math.sin(animOffset) * 2.2;
+    targetCtx.translate(0, bob);
+
+    const isBlue = faction === 'blue';
+    const armorColor = isBlue ? '#386796' : '#a83c32';
+    const trimColor  = isBlue ? '#689fd4' : '#d96b59';
+
+    // Bóng dưới chân
+    targetCtx.fillStyle = 'rgba(0,0,0,0.22)';
+    targetCtx.beginPath();
+    targetCtx.ellipse(0, 18 - bob, 13, 5, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    // Thân giáp cổ trang
+    targetCtx.fillStyle = armorColor;
+    targetCtx.strokeStyle = '#181818';
+    targetCtx.lineWidth = 2.6;
+    targetCtx.beginPath();
+    targetCtx.roundRect(-11, -6, 22, 22, 5);
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    // Vạt giáp trước bụng
+    targetCtx.fillStyle = trimColor;
+    targetCtx.fillRect(-6, 1, 12, 11);
+    targetCtx.strokeRect(-6, 1, 12, 11);
+
+    // Đầu Chibi
+    targetCtx.fillStyle = '#f3cfb3';
+    targetCtx.beginPath();
+    targetCtx.arc(0, -15, 10.5, 0, Math.PI * 2);
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    // Mắt nhìn theo hướng chiến đấu
+    const dir = isBlue ? 1 : -1;
+    targetCtx.fillStyle = '#111';
+    targetCtx.beginPath();
+    targetCtx.arc(2 * dir, -15, 1.6, 0, Math.PI * 2);
+    targetCtx.arc(7 * dir, -15, 1.6, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    // Mũ trụ (Lính xanh) hoặc Búi tóc khăn đỏ (Lính đỏ)
+    if (isBlue) {
+        targetCtx.fillStyle = '#2d5278';
+        targetCtx.beginPath();
+        targetCtx.arc(0, -17, 11, Math.PI, 0);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.stroke();
+        // Chóp mũ trụ
+        targetCtx.fillStyle = '#5fa8d3';
+        targetCtx.beginPath();
+        targetCtx.arc(0, -29, 3.5, 0, Math.PI * 2);
+        targetCtx.fill();
+        targetCtx.stroke();
+    } else {
+        targetCtx.fillStyle = '#2c221e';
+        targetCtx.beginPath();
+        targetCtx.arc(0, -18, 10.5, Math.PI, 0);
+        targetCtx.fill();
+        targetCtx.stroke();
+        // Búi tóc cột dây đỏ trên đỉnh
+        targetCtx.fillStyle = '#c0392b';
+        targetCtx.beginPath();
+        targetCtx.arc(2, -28, 4, 0, Math.PI * 2);
+        targetCtx.fill();
+        targetCtx.stroke();
+    }
+
+    // Vẽ Vũ khí cầm tay
+    targetCtx.save();
+    targetCtx.scale(dir, 1);
+    if (weaponId === 'bow1') {
+        targetCtx.strokeStyle = '#4a3018';
+        targetCtx.lineWidth = 2.8;
+        targetCtx.beginPath();
+        targetCtx.arc(8, -2, 13, -Math.PI/2.2, Math.PI/2.2);
+        targetCtx.stroke();
+        targetCtx.strokeStyle = '#eee';
+        targetCtx.lineWidth = 1;
+        targetCtx.beginPath();
+        targetCtx.moveTo(10, -13); targetCtx.lineTo(10, 9);
+        targetCtx.stroke();
+    } else if (weaponId === 'crossbow') {
+        targetCtx.fillStyle = '#4a3018';
+        targetCtx.fillRect(6, -4, 15, 4);
+        targetCtx.strokeStyle = '#222';
+        targetCtx.lineWidth = 2.5;
+        targetCtx.beginPath();
+        targetCtx.arc(16, -2, 10, -Math.PI/2.3, Math.PI/2.3);
+        targetCtx.stroke();
+    } else if (weaponId === 'sword1' || weaponId === 'sword2') {
+        const bladeColor = weaponId === 'sword2' ? '#e67e22' : '#d0d7de';
+        targetCtx.fillStyle = bladeColor;
+        targetCtx.strokeStyle = '#181818';
+        targetCtx.lineWidth = 2;
+        targetCtx.beginPath();
+        targetCtx.moveTo(8, 3);
+        targetCtx.lineTo(22, -14);
+        targetCtx.lineTo(26, -10);
+        targetCtx.lineTo(12, 7);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.stroke();
+    } else if (weaponId === 'spear') {
+        // Khiên mây + Giáo dài của quân địch (giống hệt ảnh mẫu)
+        targetCtx.fillStyle = '#78553a';
+        targetCtx.strokeStyle = '#181818';
+        targetCtx.lineWidth = 2;
+        targetCtx.beginPath();
+        targetCtx.arc(6, 3, 9, 0, Math.PI * 2);
+        targetCtx.fill();
+        targetCtx.stroke();
+        targetCtx.fillStyle = '#c89d66';
+        targetCtx.beginPath();
+        targetCtx.arc(6, 3, 3.5, 0, Math.PI * 2);
+        targetCtx.fill();
+
+        // Thân giáo
+        targetCtx.strokeStyle = '#4a3018';
+        targetCtx.lineWidth = 2.4;
+        targetCtx.beginPath();
+        targetCtx.moveTo(-4, 12);
+        targetCtx.lineTo(18, -26);
+        targetCtx.stroke();
+        // Mũi giáo bạc
+        targetCtx.fillStyle = '#bdc3c7';
+        targetCtx.beginPath();
+        targetCtx.moveTo(18, -26);
+        targetCtx.lineTo(22, -35);
+        targetCtx.lineTo(14, -29);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.stroke();
+    }
+    targetCtx.restore();
+    targetCtx.restore();
+}
+
+// ================= KHỞI TẠO ĐỘI HÌNH BAN ĐẦU GIỐNG ẢNH =================
+function initBattlefield() {
+    // 5 Lính xanh bảo vệ trước cửa doanh trại
+    const initialAllies = [
+        { x: 96,  y: 410, w: 'bow1' },
+        { x: 162, y: 425, w: 'bow1' },
+        { x: 68,  y: 500, w: 'bow1' },
+        { x: 152, y: 492, w: 'sword1' },
+        { x: 122, y: 585, w: 'bow1' }
+    ];
+    initialAllies.forEach(a => spawnAlly(a.x, a.y, a.w));
+
+    // Đám đông lính giáo áo đỏ xếp hàng bên phải
+    spawnEnemyWave(24);
+}
+
+function spawnAlly(x, y, weaponId) {
+    const w = WEAPONS[weaponId];
+    state.allies.push({
+        x, y,
+        hp: weaponId.includes('sword') ? 170 : 100,
+        maxHp: weaponId.includes('sword') ? 170 : 100,
+        weapon: weaponId,
+        range: w.range,
+        dmg: w.dmg,
+        cd: w.cd,
+        timer: Math.floor(Math.random() * 20),
+        speed: w.type === 'melee' ? 0.55 : 0.2,
+        anim: Math.random() * 10
+    });
+}
+
+function spawnEnemyWave(count) {
+    for (let i = 0; i < count; i++) {
+        const col = Math.floor(i / 6);
+        const row = i % 6;
+        state.enemies.push({
+            x: 255 + col * 32 + (Math.random() * 10 - 5),
+            y: 392 + row * 38 + (Math.random() * 8 - 4),
+            hp: 55 + state.wave * 12,
+            maxHp: 55 + state.wave * 12,
+            weapon: 'spear',
+            range: 34,
+            dmg: 8 + state.wave * 1.5,
+            cd: 50,
+            timer: Math.floor(Math.random() * 35),
+            speed: 0.24 + Math.random() * 0.08,
+            anim: Math.random() * 10
+        });
+    }
+}
+
+// ================= CẬP NHẬT GIAO DIỆN GHÉP ĐỒ =================
+function renderUI() {
+    document.getElementById('gold-text').innerText = state.gold;
+    document.getElementById('wave-num').innerText = state.wave;
+    document.getElementById('preview-weapon-name').innerText = WEAPONS[state.equippedWeapon].name;
+
+    // Vẽ lính mẫu trong ô xanh da trời
+    pCtx.clearRect(0, 0, 64, 84);
+    drawChibiUnit(pCtx, 30, 52, 'blue', state.equippedWeapon, state.frame * 0.08, 1.35);
+
+    // Cập nhật 4 ô kho đồ
+    const slots = document.querySelectorAll('.inv-slot');
+    slots.forEach((slotEl, idx) => {
+        const item = state.inventory[idx];
+        slotEl.className = 'inv-slot' + (item ? ' filled' : '') + (state.selectedSlot === idx ? ' selected' : '');
+        if (item) {
+            slotEl.innerHTML = getWeaponSVG(item) + `<span class="slot-tag">${WEAPONS[item].name}</span>`;
+        } else {
+            slotEl.innerHTML = '';
+        }
+    });
+}
+
+// Xử lý click vào 4 ô vũ khí (Chọn hoặc Ghép 2 vũ khí giống nhau)
+document.querySelectorAll('.inv-slot').forEach(slotEl => {
+    slotEl.addEventListener('click', () => {
+        const idx = parseInt(slotEl.dataset.index);
+        const clickedItem = state.inventory[idx];
+
+        if (state.selectedSlot === null) {
+            if (clickedItem) {
+                state.selectedSlot = idx;
+                state.equippedWeapon = clickedItem;
+            }
+        } else if (state.selectedSlot === idx) {
+            state.selectedSlot = null;
+        } else {
+            const firstItem = state.inventory[state.selectedSlot];
+            // Nếu 2 ô cùng loại và có thể nâng cấp -> GHÉP ĐỒ
+            if (clickedItem && firstItem === clickedItem && WEAPONS[firstItem].next) {
+                const upgraded = WEAPONS[firstItem].next;
+                state.inventory[idx] = upgraded;
+                state.inventory[state.selectedSlot] = null;
+                state.equippedWeapon = upgraded;
+                state.selectedSlot = idx;
+            } else {
+                // Đổi chỗ hoặc chọn sang ô mới
+                state.inventory[idx] = firstItem;
+                state.inventory[state.selectedSlot] = clickedItem;
+                state.selectedSlot = null;
+                if (firstItem) state.equippedWeapon = firstItem;
+            }
+        }
+        renderUI();
+    });
+});
+
+// Nhấn vào thẻ Lính Xanh để xuất binh ra chiến trường
+document.getElementById('recruit-card').addEventListener('click', () => {
+    // Nếu đang chọn vũ khí trong túi thì tiêu thụ vũ khí đó để gọi lính miễn phí
+    if (state.selectedSlot !== null && state.inventory[state.selectedSlot]) {
+        const wId = state.inventory[state.selectedSlot];
+        state.inventory[state.selectedSlot] = null;
+        state.selectedSlot = null;
+        spawnAlly(75 + Math.random() * 45, 405 + Math.random() * 195, wId);
+        renderUI();
+        return;
+    }
+    // Nếu không chọn ô nào thì tốn 20 Vàng để gọi lính cầm vũ khí đang hiển thị
+    if (state.gold >= 20) {
+        state.gold -= 20;
+        spawnAlly(75 + Math.random() * 45, 405 + Math.random() * 195, state.equippedWeapon);
+        renderUI();
+    }
+});
+
+// Nút Rèn Cung & Rèn Kiếm thêm vào ô trống
+function forgeItem(weaponId, cost) {
+    const emptyIdx = state.inventory.findIndex(x => x === null);
+    if (emptyIdx === -1 || state.gold < cost) return;
+    state.gold -= cost;
+    state.inventory[emptyIdx] = weaponId;
+    state.equippedWeapon = weaponId;
+    state.selectedSlot = emptyIdx;
+    renderUI();
+}
+
+document.getElementById('btn-forge-bow').addEventListener('click', () => forgeItem('bow1', 15));
+document.getElementById('btn-forge-sword').addEventListener('click', () => forgeItem('sword1', 10));
+
+// ================= VÒNG LẶP CHIẾN ĐẤU (GAME LOOP) =================
+function updateGame() {
+    state.frame++;
+
+    // Tự động gọi đợt quân Đỏ mới nếu tiêu diệt hết
+    if (state.enemies.length === 0) {
+        state.wave++;
+        state.gold += 25;
+        spawnEnemyWave(20 + state.wave * 4);
+        renderUI();
+    }
+
+    // Logic phe Xanh
+    state.allies.forEach(a => {
+        a.anim += 0.12;
+        let target = null;
+        let minDist = Infinity;
+        state.enemies.forEach(e => {
+            const d = Math.hypot(e.x - a.x, e.y - a.y);
+            if (d < minDist) { minDist = d; target = e; }
+        });
+
+        if (target) {
+            if (minDist > a.range) {
+                a.x += ((target.x - a.x) / minDist) * a.speed;
+                a.y += ((target.y - a.y) / minDist) * (a.speed * 0.6);
+            } else {
+                a.timer++;
+                if (a.timer >= a.cd) {
+                    a.timer = 0;
+                    if (WEAPONS[a.weapon].type === 'ranged') {
+                        state.arrows.push({
+                            x: a.x + 10, y: a.y - 8,
+                            tx: target.x, ty: target.y,
+                            target, dmg: a.dmg, progress: 0
+                        });
+                    } else {
+                        target.hp -= a.dmg;
+                        state.hits.push({ x: target.x, y: target.y - 18, text: `-${a.dmg}`, life: 22 });
+                    }
+                }
+            }
+        }
+    });
+
+    // Logic phe Đỏ tiến quân
+    state.enemies.forEach(e => {
+        e.anim += 0.14;
+        let target = null;
+        let minDist = Infinity;
+        state.allies.forEach(a => {
+            const d = Math.hypot(a.x - e.x, a.y - e.y);
+            if (d < minDist) { minDist = d; target = a; }
+        });
+
+        if (target) {
+            if (minDist > e.range) {
+                e.x += ((target.x - e.x) / minDist) * e.speed;
+                e.y += ((target.y - e.y) / minDist) * (e.speed * 0.5);
+            } else {
+                e.timer++;
+                if (e.timer >= e.cd) {
+                    e.timer = 0;
+                    target.hp -= e.dmg;
+                }
+            }
+        } else {
+            // Tiến về phía doanh trại bên trái
+            if (e.x > 65) e.x -= e.speed;
+        }
+    });
+
+    // Đường bay của tên bắn
+    for (let i = state.arrows.length - 1; i >= 0; i--) {
+        const arr = state.arrows[i];
+        arr.progress += 0.08;
+        if (arr.progress >= 1) {
+            if (arr.target && arr.target.hp > 0) {
+                arr.target.hp -= arr.dmg;
+                state.hits.push({ x: arr.target.x, y: arr.target.y - 22, text: `-${arr.dmg}`, life: 20 });
+            }
+            state.arrows.splice(i, 1);
+        }
+    }
+
+    // Xóa lính tử trận & cộng Vàng
+    state.enemies = state.enemies.filter(e => {
+        if (e.hp <= 0) {
+            state.gold += 4;
+            renderUI();
+            return false;
+        }
+        return true;
+    });
+    state.allies = state.allies.filter(a => a.hp > 0);
+
+    // Vẽ toàn bộ khung cảnh
+    drawInkBackground();
+
+    // Sắp xếp chiều sâu (Y-sorting) để lính đứng trước che lính đứng sau tự nhiên
+    const allUnits = [
+        ...state.allies.map(u => ({ ...u, side: 'blue' })),
+        ...state.enemies.map(u => ({ ...u, side: 'red' }))
+    ].sort((a, b) => a.y - b.y);
+
+    allUnits.forEach(u => {
+        drawChibiUnit(ctx, u.x, u.y, u.side, u.weapon, u.anim, 1);
+        // Thanh máu nhỏ khi bị thương
+        if (u.hp < u.maxHp) {
+            ctx.fillStyle = '#222';
+            ctx.fillRect(u.x - 12, u.y - 34, 24, 4);
+            ctx.fillStyle = u.side === 'blue' ? '#2ecc71' : '#e74c3c';
+            ctx.fillRect(u.x - 11, u.y - 33, Math.max(0, (u.hp / u.maxHp) * 22), 2);
+        }
+    });
+
+    // Vẽ mũi tên bay vòng cung
+    state.arrows.forEach(arr => {
+        const cx = arr.x + (arr.tx - arr.x) * arr.progress;
+        const cy = arr.y + (arr.ty - arr.y) * arr.progress - Math.sin(arr.progress * Math.PI) * 38;
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 6, cy - 2);
+        ctx.lineTo(cx + 6, cy + 2);
+        ctx.stroke();
+    });
+
+    // Hiệu ứng số sát thương nảy lên
+    for (let i = state.hits.length - 1; i >= 0; i--) {
+        const h = state.hits[i];
+        ctx.fillStyle = '#c0392b';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(h.text, h.x - 8, h.y);
+        h.y -= 0.7;
+        h.life--;
+        if (h.life <= 0) state.hits.splice(i, 1);
+    }
+
+    // Cập nhật động tác nhún nhảy của lính trong ô xanh
+    pCtx.clearRect(0, 0, 64, 84);
+    drawChibiUnit(pCtx, 30, 52, 'blue', state.equippedWeapon, state.frame * 0.08, 1.35);
+
+    requestAnimationFrame(updateGame);
+}
+
+// Khởi chạy
+initBattlefield();
+renderUI();
+requestAnimationFrame(updateGame);
+</script>
+</body>
+</html>
